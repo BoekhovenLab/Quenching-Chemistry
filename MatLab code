@@ -1,0 +1,93 @@
+
+%This code is written for MatLab
+
+clf
+clear; min = 60; t = 20 * min;   %set time in minutes and transfer into seconds
+
+Acid = 30;                       %set the innitial concentration precursor (mM)
+Fuel = 100;                      %set the innitial concentration fuel (mM)
+
+EDC(1)      = Fuel/1000;         %convert to M
+COOH(1)     = Acid*2/1000;       %convert to M. 2 acid groups per precursor
+COOOC(1)    = 0;                 %Initial anhydride concentration
+COOEDC(1)   = 0;                 %Initial active ester concentration
+EDU(1)      = 0;                 %Initial waste concentration
+Assembly    = 0;
+Assemblies = cell(1,t);          %Store variable in cell array for plotting
+
+Sol       = 12/1000;             %Solublity of the anhydride. The remiaining amount of anhydride in solution after it passes the CAC
+CAC       = 30/1000;             %critical aggregation concentration in M. This concentration needs to be passed to form assemblies and is different thant the solubility
+
+%rate constants of the reaction cycle
+k0 = 0.0000135;       %hydrolyzation of EDC
+k1 = 0.6;             %EDC + precursor COOH
+k2 = 0.6*k1;          %anhydride formation
+k3 = 0.07*k1;         %hydrolysis of activated precursor
+k4 = 0.014;           %anhydride hydrolysis
+
+for i=1:t
+   
+    if COOOC(i) > CAC
+        Assembly = 1;
+    end
+    if COOOC(i) < Sol
+        Assembly = 0;
+    end   
+       
+    %calculation reaction rates
+    r0(i) = k0*EDC(i);                                  %EDC + H20 -> EDU
+    r1(i) = k1*EDC(i)*COOH(i);                          %acid precursor + EDC -> O-acylurea
+    r2(i) = k2*COOEDC(i);                               %O-acylurea + second carboxylic acid -> anhydride
+    r3(i) = k3*COOEDC(i);                               %O-acylurea + H2O -> acid precursor + EDU
+                                                        
+    if Assembly == 1
+        r4(i) = k4*Sol;                                %zero order hydrolysis of anhydride
+    else
+        r4(i) = k4*COOOC(i);                           %first order hydrolysis of anhydride
+    end
+    
+    EDC(i+1)        = EDC(i) - r1(i) - r0(i);
+    COOH(i+1)       = COOH(i) - r1(i) - r2(i) + 2*r4(i) + r3(i);
+    COOEDC(i+1)     = COOEDC(i) + r1(i) - r2(i) - r3(i);
+    COOOC(i+1)      = COOOC(i) + r2(i) - r4(i);
+    EDU(i+1)        = EDU(i) + r0(i) + r2(i) + r3(i);
+    
+    CACplot(i) = CAC;
+    Solplot(i) = Sol;
+    
+    Assemblies{i} = Assembly;                                               %create cell array
+    
+end
+
+figure(1);
+subplot(2,2,1)
+plot((1:t)/60,COOH(1:t)*1000/2, '-b');
+xlabel('Time [min]')
+ylabel('c_{acid} [mM]')
+xlim([0 t/min])
+ylim([0 100])
+set(gca,'FontSize', 8);
+
+subplot(2,2,2)
+plot ((1:t)/60,COOOC(1:t)*1000, '-r');
+hold on
+plot ((1:t)/60,CACplot*1000, '--k');
+hold on
+plot ((1:t)/60,Solplot*1000, '--b');
+xlabel('Time [min]')
+ylabel('c_{anhydride} [mM]')
+legend(['Acid ' num2str(Acid) ' mM' 10 'EDC ' num2str(Fuel) ' mM'])
+legend boxoff
+xlim([0 t/min])
+ylim([0 max(COOOC)*1000*1.2])
+set(gca,'FontSize', 8);
+
+subplot(2,2,3)
+plot ((1:t)/60,EDC(1:t)*1000, '-k');
+hold on
+xlabel('Time [min]')
+ylabel('c_{EDC} [mM]')
+xlim([0 t/min])
+ylim([0 100])
+set(gca,'FontSize', 8);
+
